@@ -14,7 +14,7 @@ import ru.zhivo.app.data.*
 class StorageTest {
     private val context get()=ApplicationProvider.getApplicationContext<ZhivoApplication>()
     @Test fun sqliteMigrationPreservesInterruptedLesson(){
-        val name="migration-test.db";context.deleteDatabase(name)
+        val name="migration-test.db";context.deleteDatabase(name);context.getDatabasePath(name).parentFile?.mkdirs()
         val course=context.course;val lesson=course.lessons.first()
         val state=StudyState(session=Session(lesson.id,index=3,answers=mapOf(lesson.tasks.first().id to Answer(1,draft="неверно"))))
         SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name),null).use{db->db.execSQL("CREATE TABLE state(id INTEGER PRIMARY KEY,json TEXT NOT NULL)");db.execSQL("INSERT INTO state VALUES(1,?)",arrayOf(StateCodec.encode(state)));db.version=1}
