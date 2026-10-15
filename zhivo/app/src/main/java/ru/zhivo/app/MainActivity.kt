@@ -31,8 +31,8 @@ class MainActivity:ComponentActivity(){
     }}
     private val restore=registerForActivityResult(ActivityResultContracts.OpenDocument()){uri->if(uri!=null)lifecycleScope.launch{
         runCatching{kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO){
-            val bytes=contentResolver.openInputStream(uri)?.use{stream-> val output=java.io.ByteArrayOutputStream(); val buffer=ByteArray(8192); var count=stream.read(buffer); while(count!=-1 && output.size()<=5_000_000){output.write(buffer,0,count);count=stream.read(buffer)}; output.toByteArray()}?:error("Файл не открыт")
-            require(bytes.size<=5_000_000){"Файл больше 5 МБ"};val text=bytes.toString(Charsets.UTF_8)
+            val bytes=contentResolver.openInputStream(uri)?.use{stream-> val output=java.io.ByteArrayOutputStream(); val buffer=ByteArray(8192); var count=stream.read(buffer); while(count!=-1 && output.size()<=32_000_000){output.write(buffer,0,count);count=stream.read(buffer)}; output.toByteArray()}?:error("Файл не открыт")
+            require(bytes.size<=32_000_000){"Файл больше 32 МБ"};val text=bytes.toString(Charsets.UTF_8)
             StateCodec.decode(text,(application as ZhivoApplication).course) to text
         }}.onSuccess{preview(it.first,it.second)}.onFailure{notice("Копия не восстановлена: ${it.message}. Текущие данные сохранены.")}
     }}

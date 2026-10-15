@@ -2,6 +2,9 @@ package ru.zhivo.app.ui
 
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -47,7 +50,7 @@ import java.time.ZoneId
     LaunchedEffect(screen,foreground){
         if(foreground&&screen.isNotEmpty()&&(screen.startsWith("lesson:")||screen.startsWith("review")||screen.startsWith("dialogue:")||screen=="diagnostic")){
             var last=SystemClock.elapsedRealtime()
-            try{while(true){delay(10_000);val now=SystemClock.elapsedRealtime();store.time(now-last,screen.substringBefore(':'));last=now}}
+            try{while(true){delay(10_000);val now=SystemClock.elapsedRealtime();try{store.time(now-last,screen.substringBefore(':'))}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){notify("Не удалось сохранить время занятия: ${e.message}");break};last=now}}
             finally{val now=SystemClock.elapsedRealtime();withContext(NonCancellable){runCatching{store.time((now-last).coerceAtLeast(0),screen.substringBefore(':'))}}}
         }
     }
@@ -55,6 +58,8 @@ import java.time.ZoneId
     fun leave(){audio.stop();screen=""}
     BackHandler(enabled=screen.isNotEmpty()){leave()}
     ZhivoTheme(state.profile.theme){
+        val darkBars=MaterialTheme.colorScheme.background.luminance()<0.5f
+        SideEffect{val style=if(darkBars)SystemBarStyle.dark(android.graphics.Color.TRANSPARENT) else SystemBarStyle.light(android.graphics.Color.TRANSPARENT,android.graphics.Color.TRANSPARENT);activity.enableEdgeToEdge(statusBarStyle=style,navigationBarStyle=style)}
         Scaffold(snackbarHost={SnackbarHost(snackbar)},bottomBar={if(state.profile.onboarded&&screen.isEmpty())NavigationBar(containerColor=MaterialTheme.colorScheme.surface){
             val labels=listOf("Сегодня","Курс","Практика","Слова","Профиль");val icons=listOf(Icons.Default.Home,Icons.Default.Star,Icons.Default.PlayArrow,Icons.Default.Search,Icons.Default.Settings)
             labels.forEachIndexed{i,label->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(icons[i],contentDescription=null)},label={Text(label,fontSize=10.sp)},alwaysShowLabel=true)}

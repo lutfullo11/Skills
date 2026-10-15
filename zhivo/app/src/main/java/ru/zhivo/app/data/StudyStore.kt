@@ -13,27 +13,50 @@ import kotlinx.coroutines.withContext
 import ru.zhivo.app.core.*
 import java.util.UUID
 
-class StudyDatabase(context:Context,name:String="zhivo-study.db"):SQLiteOpenHelper(context,name,null,2){
+class StudyDatabase(context:Context,name:String="zhivo-study.db"):SQLiteOpenHelper(context,name,null,3){
+    private val chunkSize=64*1024
+    private fun chunks(db:SQLiteDatabase){
+        db.execSQL("CREATE TABLE IF NOT EXISTS state_chunks (id INTEGER PRIMARY KEY, data BLOB NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS recovery_chunks (snapshot INTEGER NOT NULL, part INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(snapshot,part))")
+    }
     override fun onCreate(db:SQLiteDatabase){
         db.execSQL("CREATE TABLE state (id INTEGER PRIMARY KEY CHECK(id=1), json TEXT NOT NULL)")
         db.execSQL("CREATE TABLE recovery (id INTEGER PRIMARY KEY, saved_at INTEGER NOT NULL, json TEXT NOT NULL)")
+        chunks(db)
     }
     override fun onUpgrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int){
         if(oldVersion<2)db.execSQL("CREATE TABLE IF NOT EXISTS recovery (id INTEGER PRIMARY KEY, saved_at INTEGER NOT NULL, json TEXT NOT NULL)")
+        if(oldVersion<3){
+            chunks(db)
+            // SQL substr reads the legacy value without placing a multi-megabyte row in CursorWindow.
+            val size=db.rawQuery("SELECT length(CAST(json AS BLOB)) FROM state WHERE id=1",null).use{if(it.moveToFirst())it.getInt(0) else 0}
+            for(offset in 0 until size step chunkSize)db.execSQL("INSERT INTO state_chunks(id,data) SELECT ?,substr(CAST(json AS BLOB),?,?) FROM state WHERE id=1",arrayOf(offset/chunkSize,offset+1,chunkSize))
+            if(size>0)db.delete("state",null,null)
+        }
     }
-    fun read():String?=readableDatabase.rawQuery("SELECT json FROM state WHERE id=1",null).use{if(it.moveToFirst())it.getString(0) else null}
+    fun read():String?{
+        val out=java.io.ByteArrayOutputStream()
+        readableDatabase.rawQuery("SELECT data FROM state_chunks ORDER BY id",null).use{cursor->while(cursor.moveToNext())out.write(cursor.getBlob(0))}
+        return if(out.size()==0)null else out.toString(Charsets.UTF_8.name())
+    }
     fun write(json:String,recovery:Boolean=false){
+        val bytes=json.toByteArray(Charsets.UTF_8);require(bytes.size<=32_000_000){"Данные превышают 32 МБ"}
         val db=writableDatabase;db.beginTransaction()
         try{
             if(recovery){
-                db.execSQL("INSERT INTO recovery(saved_at,json) SELECT ?,json FROM state WHERE id=1",arrayOf(System.currentTimeMillis()))
-                db.execSQL("DELETE FROM recovery WHERE id NOT IN (SELECT id FROM recovery ORDER BY id DESC LIMIT 2)")
+                val snapshot=System.currentTimeMillis()
+                db.execSQL("INSERT INTO recovery_chunks(snapshot,part,data) SELECT ?,id,data FROM state_chunks",arrayOf(snapshot))
+                db.execSQL("DELETE FROM recovery_chunks WHERE snapshot NOT IN (SELECT DISTINCT snapshot FROM recovery_chunks ORDER BY snapshot DESC LIMIT 2)")
             }
-            db.insertWithOnConflict("state",null,ContentValues().apply{put("id",1);put("json",json)},SQLiteDatabase.CONFLICT_REPLACE).also{check(it!=-1L){"Не удалось сохранить прогресс"}}
+            db.delete("state_chunks",null,null)
+            for(offset in bytes.indices step chunkSize){
+                val data=bytes.copyOfRange(offset,minOf(offset+chunkSize,bytes.size))
+                check(db.insertOrThrow("state_chunks",null,ContentValues().apply{put("id",offset/chunkSize);put("data",data)})!=-1L){"Не удалось сохранить прогресс"}
+            }
             db.setTransactionSuccessful()
         }finally{db.endTransaction()}
     }
-    fun clearRecovery(){writableDatabase.delete("recovery",null,null)}
+    fun clearRecovery(){writableDatabase.delete("recovery",null,null);writableDatabase.delete("recovery_chunks",null,null)}
 }
 class StudyStore(context:Context,val course:Course){
     private val db=StudyDatabase(context.applicationContext)

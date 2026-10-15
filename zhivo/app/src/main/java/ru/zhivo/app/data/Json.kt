@@ -38,7 +38,7 @@ object StateCodec {
             "dialogueWins" to JSONArray(s.dialogueWins.toList()),"dialogueNodes" to JSONObject(s.dialogueNodes)).toString()
     }
     fun decode(text:String,course:Course):StudyState {
-        require(text.toByteArray(Charsets.UTF_8).size<=5_000_000){"Файл больше 5 МБ"}
+        require(text.toByteArray(Charsets.UTF_8).size<=32_000_000){"Файл больше 32 МБ"}
         val o=JSONObject(text)
         require(o.optString("format")=="zhivo-backup"){"Это не резервная копия «Живо»"}
         require(o.getInt("version") in 1..2){"Эта копия создана другой версией приложения"}
