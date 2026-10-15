@@ -5,6 +5,8 @@ on:
       - 'zhivo/**'
       - '.github/workflows/zhivo-android.yml'
   workflow_dispatch:
+env:
+  ZHIVO_DEBUG_KEYSTORE: ${{ github.workspace }}/zhivo/.ci/debug.keystore
 permissions:
   contents: read
 concurrency:
@@ -52,11 +54,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           validate-wrappers: true
+          cache-read-only: false
       - name: Reuse debug signing key when available
         uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: zhivo-debug-keystore-v1-${{ github.repository }}
+          path: ${{ env.ZHIVO_DEBUG_KEYSTORE }}
+          key: zhivo-debug-keystore-v2-${{ github.repository }}
+      - name: Create debug key only on cache miss
+        run: |
+          mkdir -p .ci
+          if [ ! -f "$ZHIVO_DEBUG_KEYSTORE" ]; then
+            keytool -genkeypair -keystore "$ZHIVO_DEBUG_KEYSTORE" -storepass android -keypass android -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
+          fi
       - name: Check authored content matches packaged course
         run: python3 scripts/build_course.py --check
       - name: Test, lint and build
@@ -97,6 +106,13 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.ZHIVO_DEBUG_KEYSTORE }}
+          key: zhivo-debug-keystore-v2-${{ github.repository }}
+          fail-on-cache-miss: true
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

@@ -12,6 +12,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import android.graphics.Bitmap
+import android.content.ContentValues
+import android.os.Build
+import android.provider.MediaStore
 import java.io.File
 
 @RunWith(AndroidJUnit4::class)
@@ -20,7 +23,17 @@ class InterfaceTest {
     private val app get()=ApplicationProvider.getApplicationContext<ZhivoApplication>()
     @Before fun clean() {runBlocking{app.store.reset()};rule.waitForIdle()}
     private fun click(text:String){val node=rule.onNodeWithText(text);runCatching{node.performScrollTo()};node.performClick();rule.waitForIdle()}
-    private fun screenshot(name:String){InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()?.let{bitmap->File(app.getExternalFilesDir(null),"$name-${(app.resources.configuration.fontScale*100).toInt()}.png").outputStream().use{bitmap.compress(Bitmap.CompressFormat.PNG,100,it)};bitmap.recycle()}}
+    private fun screenshot(name:String){
+        val bitmap=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()?:error("Screenshot unavailable")
+        val filename="$name-${(app.resources.configuration.fontScale*100).toInt()}.png"
+        try{
+            if(Build.VERSION.SDK_INT>=29){
+                val values=ContentValues().apply{put(MediaStore.Images.Media.DISPLAY_NAME,filename);put(MediaStore.Images.Media.MIME_TYPE,"image/png");put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/Zhivo-tests")}
+                val uri=app.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values)?:error("Cannot save screenshot")
+                app.contentResolver.openOutputStream(uri)!!.use{check(bitmap.compress(Bitmap.CompressFormat.PNG,100,it))}
+            }else File(app.getExternalFilesDir(null),filename).outputStream().use{bitmap.compress(Bitmap.CompressFormat.PNG,100,it)}
+        }finally{bitmap.recycle()}
+    }
     @Test fun onboardingLessonWrongRetryAndRecreation(){
         click("Настроить обучение");click("Таджикский");click("Дальше");click("Начать без диагностики")
         rule.waitUntil(5000){app.store.state.value.profile.onboarded};rule.waitForIdle();screenshot("01-home")
