@@ -33,7 +33,7 @@ private val Dark=darkColorScheme(primary=Color(0xFFADDBB2),onPrimary=Color(0xFF1
     Surface(modifier.fillMaxWidth(),shape=RoundedCornerShape(24.dp),color=if(tonal)MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,tonalElevation=if(tonal)0.dp else 1.dp){Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp),content=content)}
 }
 @Composable fun Label(text:String){Text(text,style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold)}
-@Composable fun Head(text:String){Text(text,fontSize=21.sp,fontWeight=FontWeight.SemiBold,lineHeight=28.sp)}
+@Composable fun Head(text:String,modifier:Modifier=Modifier){Text(text,modifier=modifier,fontSize=21.sp,fontWeight=FontWeight.SemiBold,lineHeight=28.sp)}
 @Composable fun Small(text:String){Text(text,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)}
 @Composable fun Action(text:String,enabled:Boolean=true,onClick:()->Unit){Button(onClick=onClick,enabled=enabled,modifier=Modifier.fillMaxWidth().heightIn(min=54.dp),shape=RoundedCornerShape(16.dp),contentPadding=PaddingValues(16.dp)){Text(text,style=MaterialTheme.typography.titleMedium)}}
 @Composable fun Secondary(text:String,enabled:Boolean=true,onClick:()->Unit){OutlinedButton(onClick=onClick,enabled=enabled,modifier=Modifier.fillMaxWidth().heightIn(min=50.dp),shape=RoundedCornerShape(16.dp),contentPadding=PaddingValues(14.dp)){Text(text)}}

@@ -98,7 +98,7 @@ import java.time.ZoneId
             Small(if(next!=null)"${course.stages.first{it.id==next.stage}.subtitle} · 9 заданий · около ${next.minutes} минут" else "В курсе ${course.lessons.size} урока")
             Action(if(state.session?.finished==false)"Продолжить занятие" else if(next!=null)"Начать занятие" else "К повторению"){if(next!=null)lesson(next.id) else review()}
         }
-        Panel{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Head("Немного каждый день");Label("${minutes.toInt()} / ${state.profile.dailyMinutes} мин")}
+        Panel{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){Head("Немного каждый день",Modifier.weight(1f));Label("${minutes.toInt()} / ${state.profile.dailyMinutes} мин")}
             LinearProgressIndicator(progress={(minutes/state.profile.dailyMinutes).toFloat().coerceIn(0f,1f)},modifier=Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){(6 downTo 0).forEach{offset->val day=today.minusDays(offset.toLong());val m=Learning.minutes(state.events,day,zone);Column(horizontalAlignment=androidx.compose.ui.Alignment.CenterHorizontally){Text(if(m>=state.profile.dailyMinutes)"●" else if(m>0)"◐" else "○",fontSize=23.sp,color=MaterialTheme.colorScheme.primary);Small(listOf("Пн","Вт","Ср","Чт","Пт","Сб","Вс")[day.dayOfWeek.value-1])}}}
             Small("Время учитывается в открытом занятии. Освоение оценивается отдельно по ответам и повторению.")

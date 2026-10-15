@@ -1,6 +1,8 @@
 package ru.zhivo.app
 
 import androidx.compose.ui.test.*
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -46,7 +48,11 @@ class InterfaceTest {
     }
     @Test fun onboardingLessonWrongRetryAndRecreation(){
         click("Настроить обучение");click("Таджикский");click("Дальше");click("Начать без диагностики")
-        rule.waitUntil(5000){app.store.state.value.profile.onboarded};expect("Начать занятие");rule.waitForIdle();screenshot("01-home")
+        rule.waitUntil(5000){app.store.state.value.profile.onboarded};expect("Начать занятие");rule.waitForIdle()
+        val layouts=mutableListOf<TextLayoutResult>()
+        expect("0 / 10 мин").performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
+        assertTrue(layouts.isNotEmpty());assertEquals("Daily counter must remain on one line",1,layouts.first().lineCount)
+        screenshot("01-home")
         click("Начать занятие");click("Попробовать · 9 заданий");click("кот");click("Проверить")
         expect("Попробуйте ещё раз");click("мама");click("Проверить");expect("Получилось")
         click("Дальше");expect("Ваш ответ").performTextInput("а");click("Проверить");expect("Верно");screenshot("02-lesson")
