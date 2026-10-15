@@ -23,7 +23,7 @@ import kotlin.random.Random
     val index=session.index
     if(session.finished||index>=lesson.tasks.size){
         val p=state.progress[lesson.id];Page("Хорошая работа",back=back){Panel(tonal=true){Label("ЗАНЯТИЕ ЗАВЕРШЕНО");Head(lesson.title)
-            Text("${session.answers.values.count{it.firstCorrect&&!it.unassessed}} ответов с первой попытки. Задания с пропуском, открытым ответом или самооценкой речи не подтверждают освоение.")
+            Text("Ответов с первой попытки: ${session.answers.values.count{it.firstCorrect&&!it.unassessed}}. Задания с пропуском, открытым ответом или самооценкой речи не подтверждают освоение.")
             Small("Лучший результат: ${p?.bestCorrect?:0} из ${p?.bestAssessed?:0} оценённых заданий. Повторная проверка позже покажет, что сохранилось в памяти.")}
             Head("Теперь своими словами");Text(lesson.goal);Text(lesson.tasks.last().prompt)
             Action("Вернуться к маршруту",onClick=back);Secondary("Пройти урок ещё раз",!busy){run{store.start(lesson.id)}}}
@@ -44,7 +44,7 @@ import kotlin.random.Random
     Page("${index+1} из ${lesson.tasks.size}",lesson.title,back){
         LinearProgressIndicator(progress={(index.toFloat()/lesson.tasks.size)},modifier=Modifier.fillMaxWidth())
         Label(taskName(task.type));Head(task.prompt)
-        if(task.strictYo)Small("В этом задании Е и Ё различаются по смыслу.")
+        if(AnswerChecker.distinguishesYo(task))Small("В этом задании Е и Ё различаются по смыслу.")
         if(task.passage.isNotBlank())Panel{Text(task.passage,style=MaterialTheme.typography.bodyLarge)}
         if(task.audio.isNotBlank()){
             Secondary(if(task.type==TaskType.SPEAK)"Послушать образец" else "Послушать ещё раз"){audio.speak(task.audio)}

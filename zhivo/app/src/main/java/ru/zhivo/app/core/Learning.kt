@@ -16,13 +16,15 @@ object AnswerChecker {
         if(!strictYo)s=s.replace('ё','е')
         return s.replace(Regex("[.,!?;:\"«»“”()—–]")," ").replace(Regex("\\s+")," ").trim()
     }
+    fun distinguishesYo(t:Task):Boolean = t.strictYo||t.answers.any{a->a.lowercase(Locale.ROOT).split(Regex("[^\\p{L}]+" )).any{it=="все"||it=="всё"}}
     fun matches(t:Task,input:String):Boolean {
         if(t.type==TaskType.MATCH){
             val lines=input.split("\n")
             val expected=t.pairs.map{(a,b)->"$a\t$b"}
             return lines.size==expected.size && lines.toSet()==expected.toSet()
         }
-        return t.answers.any{normalize(input,t.strictYo,t.stress)==normalize(it,t.strictYo,t.stress)}
+        val distinguishYo=distinguishesYo(t)
+        return t.answers.any{normalize(input,distinguishYo,t.stress)==normalize(it,distinguishYo,t.stress)}
     }
 }
 

@@ -82,7 +82,7 @@ import java.time.ZoneId
             }
             if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
         }}
-        importPreview?.let{(preview,text)->AlertDialog(onDismissRequest={importPreview=null},title={Text("Заменить текущий прогресс?")},text={Text("В копии: ${preview.progress.count{it.value.completedAt>0}} завершённых уроков, ${preview.customWords.size} личных слов. Будут заменены настройки, ответы и расписание повторений. Сначала сохраните текущую копию, если она нужна. Голосовые записи не изменятся.")},confirmButton={TextButton(enabled=!busy,onClick={run{store.import(text);Reminders.schedule(activity,store.state.value.profile);importPreview=null;leave();notify("Резервная копия восстановлена")}}){Text("Восстановить")}},dismissButton={TextButton(onClick={importPreview=null}){Text("Отмена")}})}
+        importPreview?.let{(preview,text)->AlertDialog(onDismissRequest={importPreview=null},title={Text("Заменить текущий прогресс?")},text={Text("В копии: завершённых уроков — ${preview.progress.count{it.value.completedAt>0}}, личных слов — ${preview.customWords.size}. Будут заменены настройки, ответы и расписание повторений. Сначала сохраните текущую копию, если она нужна. Голосовые записи не изменятся.")},confirmButton={TextButton(enabled=!busy,onClick={run{store.import(text);Reminders.schedule(activity,store.state.value.profile);importPreview=null;leave();notify("Резервная копия восстановлена")}}){Text("Восстановить")}},dismissButton={TextButton(onClick={importPreview=null}){Text("Отмена")}})}
         recognized?.let{text->AlertDialog(onDismissRequest={recognized=null},title={Text("Распознанный текст")},text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)){Text(text);Small("Это результат распознавания слов, а не оценка произношения. Сервис может ошибаться. Сравните со своей записью и учебным образцом.")}},confirmButton={TextButton(onClick={recognized=null}){Text("Понятно")}})}
         store.loadError?.let{error->AlertDialog(onDismissRequest={},title={Text("Данные требуют восстановления")},text={Text(error)},confirmButton={TextButton(onClick={activity.importBackup()}){Text("Выбрать копию")}},dismissButton={TextButton(onClick={run{store.reset()}}){Text("Начать заново")}})}
     }
@@ -121,7 +121,7 @@ import java.time.ZoneId
     Page("Практика","Вспоминайте, слушайте и пробуйте говорить"){
         Line("Кириллица и произношение","33 буквы, мягкость, ударение, Ы/И и Ш/Щ","Открыть",alphabet)
         Panel(tonal=true){Label("ПОВТОРЕНИЕ");Head("Сначала вспомнить — потом проверить");Text("Расписание учитывает ответы. После ошибки карточка вернётся раньше; устойчивые ответы увеличивают интервал.");Action("Повторить по расписанию (${Learning.due(state,System.currentTimeMillis()).size})",onClick=review)}
-        Line("Мои трудности","${state.errors.count{it.value>0}} заданий с ошибками","Разобрать",errors)
+        Line("Мои трудности","Заданий с ошибками: ${state.errors.count{it.value>0}}","Разобрать",errors)
         Head("Разговорные ситуации");Small("Локальные диалоги с выбором и разбором реплик. Это подготовленные сценарии, без свободного ИИ-общения.")
         course.dialogues.forEach{d->Line(d.title,"${d.level} · ${d.goal}",if(d.id in state.dialogueWins)"✓" else "→"){dialogue(d.id)}}
         Line("Мои записи","Прослушать и удалить собственную речь","Открыть",recordings)

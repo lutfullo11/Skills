@@ -14,6 +14,7 @@ class LearningTest {
     private fun course():Course=CourseCodec.decode(File("src/main/assets/course.json").readText())
     @Test fun spacingCasePunctuationAndStress(){assertTrue(AnswerChecker.matches(task(),"  я   чита́ю КНИГУ! "));assertTrue(AnswerChecker.matches(task("Ёж"),"еж"))}
     @Test fun meaningfulYoRemainsDistinct(){assertFalse(AnswerChecker.matches(task("всё",true),"все"));assertTrue(AnswerChecker.matches(task("всё",true),"ВСЁ"))}
+    @Test fun meaningfulAllEverythingIsNeverFolded(){assertFalse(AnswerChecker.matches(task("Не все участники согласны."),"Не всё участники согласны"));assertFalse(AnswerChecker.matches(task("Всё готово."),"Все готово"));assertTrue(AnswerChecker.matches(task("Моё окно."),"Мое окно"))}
     @Test fun shortIIsNotI(){assertFalse(AnswerChecker.matches(task("мой"),"мои"));assertTrue(AnswerChecker.matches(task("мой"),"мои\u0306"))}
     @Test fun grammaticalAndExtraWordsAreRejected(){assertFalse(AnswerChecker.matches(task(),"Я читать книгу"));assertFalse(AnswerChecker.matches(task(),"Я не читаю книгу"));assertFalse(AnswerChecker.matches(task(),"Он говорит я читаю книгу"))}
     @Test fun allowedAlternativeOrderIsExplicit(){val t=task().copy(answers=listOf("Я читаю книгу.","Книгу я читаю."));assertTrue(AnswerChecker.matches(t,"Книгу я читаю"));assertFalse(AnswerChecker.matches(t,"Читаешь я книгу"))}

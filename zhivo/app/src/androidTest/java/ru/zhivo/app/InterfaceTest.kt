@@ -22,8 +22,18 @@ class InterfaceTest {
     @get:Rule val rule=createAndroidComposeRule<MainActivity>()
     private val app get()=ApplicationProvider.getApplicationContext<ZhivoApplication>()
     @Before fun clean() {runBlocking{app.store.reset()};rule.waitForIdle()}
-    private fun click(text:String){val node=rule.onNodeWithText(text);runCatching{node.performScrollTo()};node.performClick();rule.waitForIdle()}
+    private fun expect(text:String):SemanticsNodeInteraction{
+        rule.waitUntil(10_000){rule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()}
+        return rule.onNodeWithText(text).assertExists()
+    }
+    private fun click(text:String){
+        val matcher=hasText(text) and isEnabled()
+        rule.waitUntil(10_000){rule.onAllNodes(matcher).fetchSemanticsNodes().size==1}
+        val node=rule.onNode(matcher);runCatching{node.performScrollTo()};node.performClick();rule.waitForIdle()
+    }
     private fun screenshot(name:String){
+        rule.waitForIdle()
+        InstrumentationRegistry.getInstrumentation().uiAutomation.waitForIdle(150,3000)
         val bitmap=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()?:error("Screenshot unavailable")
         val filename="$name-${(app.resources.configuration.fontScale*100).toInt()}.png"
         try{
@@ -36,22 +46,22 @@ class InterfaceTest {
     }
     @Test fun onboardingLessonWrongRetryAndRecreation(){
         click("Настроить обучение");click("Таджикский");click("Дальше");click("Начать без диагностики")
-        rule.waitUntil(5000){app.store.state.value.profile.onboarded};rule.waitForIdle();screenshot("01-home")
+        rule.waitUntil(5000){app.store.state.value.profile.onboarded};expect("Начать занятие");rule.waitForIdle();screenshot("01-home")
         click("Начать занятие");click("Попробовать · 9 заданий");click("кот");click("Проверить")
-        rule.onNodeWithText("Попробуйте ещё раз").assertExists();click("мама");click("Проверить");rule.onNodeWithText("Получилось").assertExists()
-        click("Дальше");rule.onNodeWithText("Ваш ответ").performTextInput("а");click("Проверить");rule.onNodeWithText("Верно").assertExists();screenshot("02-lesson")
-        rule.activityRule.scenario.recreate();rule.waitForIdle();rule.onNodeWithText("Верно").assertExists()
+        expect("Попробуйте ещё раз");click("мама");click("Проверить");expect("Получилось")
+        click("Дальше");expect("Ваш ответ").performTextInput("а");click("Проверить");expect("Верно");screenshot("02-lesson")
+        rule.activityRule.scenario.recreate();rule.waitForIdle();expect("Верно")
         assertEquals(1,app.store.state.value.session?.index)
         assertEquals(false,app.store.state.value.session?.answers?.values?.first()?.firstCorrect)
     }
     @Test fun navigationDarkThemeAndBackupState(){
         runBlocking{app.store.profile(app.store.state.value.profile.copy(onboarded=true,nativeLanguage="Английский"))};rule.waitForIdle()
-        click("Курс");rule.onNodeWithText("Ваш маршрут").assertExists();screenshot("03-course")
-        click("Практика");rule.onNodeWithText("Разговорные ситуации").assertExists()
-        click("Слова");click("Добавить своё слово");rule.onNodeWithText("Слово или выражение").performTextInput("проверка");rule.onNodeWithText("Значение или перевод").performTextInput("test");click("Добавить")
+        click("Курс");expect("Ваш маршрут");screenshot("03-course")
+        click("Практика");expect("Разговорные ситуации")
+        click("Слова");click("Добавить своё слово");expect("Слово или выражение").performTextInput("проверка");expect("Значение или перевод").performTextInput("test");click("Добавить")
         rule.waitUntil(5000){app.store.state.value.customWords.isNotEmpty()};click("Профиль");click("Тёмная")
         rule.waitUntil(5000){app.store.state.value.profile.theme=="dark"};screenshot("04-dark-profile")
-        click("Сегодня");rule.onNodeWithText("Живо").assertExists();screenshot("05-dark-home")
+        click("Сегодня");expect("Живо");screenshot("05-dark-home")
         val copy=ru.zhivo.app.data.StateCodec.decode(app.store.export(),app.course);assertEquals("проверка",copy.customWords.single().word)
     }
 }
