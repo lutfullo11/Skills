@@ -8,11 +8,30 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: zhivo-${{ github.ref }}
+  group: zhivo-v2-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  cleanup:
+    name: Stop obsolete runs for this branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Cancel only older Живо runs on the same branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ZHIVO_BRANCH: ${{ github.ref_name }}
+        run: |
+          gh api "repos/$GH_REPO/actions/runs?per_page=100" | jq -r --arg branch "$ZHIVO_BRANCH" --argjson current "$GITHUB_RUN_ID" '.workflow_runs[] | select(.path == ".github/workflows/zhivo-android.yml" and .head_branch == $branch and .id < $current and .status != "completed") | .id' > /tmp/zhivo-obsolete-runs
+          while read -r old_run; do
+            gh api --method POST "repos/$GH_REPO/actions/runs/$old_run/force-cancel" || gh api --method POST "repos/$GH_REPO/actions/runs/$old_run/cancel" || true
+          done < /tmp/zhivo-obsolete-runs
   build:
     name: Tests, lint and debug APK
+    needs: cleanup
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -94,12 +113,6 @@ jobs:
           emulator-boot-timeout: 600
           script: |
             cd zhivo && bash scripts/device_test.sh
-      - name: Collect UI captures and device logs
-        if: always()
-        run: |
-          mkdir -p zhivo/device-captures
-          adb pull /sdcard/Android/data/ru.zhivo.study/files/ zhivo/device-captures/ || true
-          adb logcat -d > zhivo/device-captures/logcat.txt || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:

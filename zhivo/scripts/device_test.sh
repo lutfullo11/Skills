@@ -14,6 +14,6 @@ if [ "$zhivo_result" -eq 0 ]; then
   ./gradlew --no-daemon connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=ru.zhivo.app.InterfaceTest
   zhivo_result=$?
 fi
-adb pull /sdcard/Android/data/ru.zhivo.study/files/ device-captures/ || true
-adb logcat -d > device-captures/logcat.txt || true
+timeout 20s adb pull /sdcard/Android/data/ru.zhivo.study/files/ device-captures/ || true
+timeout 20s adb logcat -d > device-captures/logcat.txt || true
 exit "$zhivo_result"
