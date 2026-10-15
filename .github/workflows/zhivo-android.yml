@@ -1,0 +1,108 @@
+name: Живо · Android APK
+on:
+  push:
+    paths:
+      - 'zhivo/**'
+      - '.github/workflows/zhivo-android.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: zhivo-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    name: Tests, lint and debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: zhivo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install SDK 36
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          validate-wrappers: true
+      - name: Reuse debug signing key when available
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: zhivo-debug-keystore-v1-${{ github.repository }}
+      - name: Check authored content matches packaged course
+        run: python3 scripts/build_course.py --check
+      - name: Test, lint and build
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
+      - name: Verify installable APK and 16 KB alignment
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 app/build/outputs/apk/debug/app-debug.apk
+          python3 scripts/check_apk.py app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/Zhivo-1.0-debug.apk
+          sha256sum dist/Zhivo-1.0-debug.apk > dist/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zhivo-debug-APK
+          path: zhivo/dist/
+          retention-days: 30
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Zhivo-check-reports
+          path: |
+            zhivo/app/build/reports/
+            zhivo/app/build/test-results/
+          retention-days: 30
+  android16:
+    name: Android 16 UI and SQLite tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Test on Android 16 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: |
+            cd zhivo && bash scripts/device_test.sh
+      - name: Collect UI captures and device logs
+        if: always()
+        run: |
+          mkdir -p zhivo/device-captures
+          adb pull /sdcard/Android/data/ru.zhivo.study/files/ zhivo/device-captures/ || true
+          adb logcat -d > zhivo/device-captures/logcat.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Zhivo-Android16-tests
+          path: |
+            zhivo/app/build/reports/androidTests/
+            zhivo/app/build/outputs/androidTest-results/
+            zhivo/device-captures/
+          retention-days: 30

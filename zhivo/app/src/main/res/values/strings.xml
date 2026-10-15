@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Живо</string>
+    <style name="Theme.Zhivo" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">#12231F</item>
+        <item name="android:colorAccent">#94D7B3</item>
+    </style>
+</resources>
